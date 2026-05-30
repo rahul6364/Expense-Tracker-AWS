@@ -1,6 +1,32 @@
-# AWS Deployment Guide
+# AWS Manual Deployment Guide
 
-Complete step-by-step guide for deploying the Expense Tracker 3-tier application on AWS. This document covers networking, compute, database, container deployment, and load balancer configuration.
+Step-by-step guide for deploying the Expense Tracker **using the AWS Console** (or CLI). This path is ideal for **learning AWS networking and services** before adopting Infrastructure as Code.
+
+> **Production / portfolio deploy:** Use **[terraform-deployment.md](terraform-deployment.md)** for a single `terraform apply` with zero manual steps after image push.
+
+### When to use this guide
+
+| Use manual setup when… | Use Terraform when… |
+|------------------------|---------------------|
+| Learning VPC, ALB, RDS concepts | You want repeatable, version-controlled infra |
+| Following AWS certification labs | You need one-command full stack deploy |
+| Comparing Console steps to IaC | CI/CD or team collaboration on infra |
+
+---
+
+## Relationship to prod (Terraform)
+
+| Step in this guide | Terraform equivalent |
+|--------------------|----------------------|
+| VPC, subnets, IGW, NAT | `main.tf`, `route_table.tf` |
+| Security groups | `security_groups.tf` |
+| RDS MySQL | `rds.tf` |
+| ALB + listener rules | `alb.tf` |
+| Launch templates + user data | `launch_template.tf`, `scripts/*.sh` |
+| Auto Scaling Groups | `asg.tf` |
+| Schema / `transactions` table | Automatic via `backend/bootstrap.js` (no manual SQL required) |
+
+See [architecture.md](architecture.md) for a side-by-side comparison.
 
 ---
 
@@ -202,25 +228,16 @@ Create four security groups in the VPC.
 
 ### Apply Schema
 
-Connect from a bastion host, Cloud9 in the VPC, or RDS Query Editor:
+**Recommended:** Use the backend image that includes `bootstrap.js`. On first container start, the API connects to RDS and creates the `transactions` table if it does not exist. No manual SQL is required for normal deployments.
+
+**Optional (manual / debugging):** Connect from a bastion, Cloud9, or RDS Query Editor and run `backend/schema.sql`, or execute:
 
 ```sql
 USE expense_tracker;
-
-CREATE TABLE IF NOT EXISTS transactions (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  title VARCHAR(255) NOT NULL,
-  amount DECIMAL(10,2) NOT NULL,
-  type ENUM('income','expense') NOT NULL,
-  category VARCHAR(100),
-  date DATE NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- See backend/schema.sql for full DDL
 ```
 
-Or run `backend/schema.sql` against the RDS endpoint.
-
-Record the **RDS endpoint** — required for backend environment variables.
+Record the **RDS endpoint** — required for backend environment variables (or passed via Terraform user data on prod).
 
 ---
 
@@ -463,7 +480,8 @@ See [troubleshooting.md](troubleshooting.md) for detailed issue resolution.
 
 ## Next Steps
 
-- Enable HTTPS with ACM
+- Migrate to IaC: [terraform-deployment.md](terraform-deployment.md)
+- Enable HTTPS with ACM on the ALB
 - Move secrets to AWS Secrets Manager
 - Add CloudWatch alarms for unhealthy hosts
-- Automate with Terraform (see README Future Improvements)
+- See [README.md](README.md) for screenshot checklist and portfolio tips

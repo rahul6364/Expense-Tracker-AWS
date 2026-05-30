@@ -1,6 +1,6 @@
 # Security Architecture
 
-This document describes how network isolation, security groups, and load balancer routing work together to protect the Expense Tracker 3-tier deployment on AWS.
+This document describes how network isolation, security groups, and load balancer routing work together to protect the Expense Tracker 3-tier deployment on AWS (manual **main** or Terraform **prod**).
 
 ---
 
@@ -46,7 +46,7 @@ This document describes how network isolation, security groups, and load balance
          ┌──────────────────┐   ┌──────────────────┐         
          │ Frontend EC2     │   │ Backend EC2      │         
          │ nginx :80        │   │ Express :4000    │         
-         │ (Public subnet)  │   │ (Private subnet) │         
+         │ (Private app)    │   │ (Private app)    │         
          └──────────────────┘   └────────┬─────────┘         
                                          │ MySQL :3306       
                                          ▼                   
@@ -76,12 +76,12 @@ This document describes how network isolation, security groups, and load balance
 │                        VPC 10.0.0.0/16                                  │
 │                                                                         │
 │  ┌──────────────────────────── PUBLIC SUBNETS ────────────────────────┐ │
-│  │  Internet Gateway ◄──► ALB, Frontend EC2, NAT Gateway              │ │
+│  │  Internet Gateway ◄──► ALB, NAT Gateways                           │ │
 │  └──────────────────────────────────────────────────────────────────────┘ │
 │                                                                         │
 │  ┌──────────────────────────── PRIVATE APP SUBNETS ───────────────────┐ │
-│  │  Backend EC2 ASG (no public IP)                                      │ │
-│  │  Outbound via NAT Gateway only (Docker Hub, patches)                 │ │
+│  │  Frontend + Backend EC2 ASGs (no public IP)                         │ │
+│  │  Outbound via NAT Gateway (Docker Hub, patches)                      │ │
 │  └──────────────────────────────────────────────────────────────────────┘ │
 │                                                                         │
 │  ┌──────────────────────────── PRIVATE DB SUBNETS ────────────────────┐ │
@@ -92,8 +92,8 @@ This document describes how network isolation, security groups, and load balance
 
 | Subnet Tier | Internet Inbound | Internet Outbound | Workloads |
 |-------------|------------------|-------------------|-----------|
-| **Public** | Yes (via IGW) | Yes (via IGW) | ALB, frontend EC2, NAT |
-| **Private App** | No | Yes (via NAT only) | Backend EC2 |
+| **Public** | Yes (via IGW) | Yes (via IGW) | ALB, NAT Gateway |
+| **Private App** | No (ALB only) | Yes (via NAT) | Frontend + backend EC2 |
 | **Private DB** | No | No | RDS |
 
 **Why this matters:** Even if an attacker discovers a backend private IP, they cannot reach it directly from the internet. Traffic must pass through the ALB, which enforces listener rules and can later be protected with WAF.
@@ -158,7 +158,7 @@ The External ALB is the **only** internet-facing application endpoint.
 | ALB → Backend EC2 | Internal (VPC) | Backend in private subnet; ALB initiates connection |
 | Backend EC2 → RDS | Internal (VPC) | Private DNS endpoint resolves to private IP |
 | Backend EC2 → Docker Hub | External (egress) | Via NAT Gateway in public subnet |
-| Frontend EC2 → Docker Hub | External (egress) | Via Internet Gateway (public subnet) |
+| Frontend EC2 → Docker Hub | External (egress) | Via NAT Gateway (private app subnet) |
 | RDS → Internet | None | Fully isolated |
 
 ### Why the Frontend Does Not Call the Backend Directly
@@ -166,7 +166,7 @@ The External ALB is the **only** internet-facing application endpoint.
 The React app runs in the **user's browser**, not on the frontend EC2 instance. API calls go from the browser to the ALB — never from frontend EC2 to backend EC2. This is why:
 
 - `sg-frontend-ec2` does not need access to `sg-backend-ec2`
-- `VITE_API_URL` must point to the ALB (browser-reachable), not a private backend IP
+- `VITE_API_URL` can be empty when using ALB path routing (browser calls `/api/*` on the same host), or set to the ALB URL explicitly
 
 ---
 
@@ -219,6 +219,8 @@ The React app runs in the **user's browser**, not on the frontend EC2 instance. 
 
 ## Related Documentation
 
-- [aws-setup.md](aws-setup.md) — Step-by-step deployment
+- [terraform-deployment.md](terraform-deployment.md) — Terraform prod deploy
+- [architecture.md](architecture.md) — Tier overview and diagrams
+- [aws-setup.md](aws-setup.md) — Manual console deployment
 - [troubleshooting.md](troubleshooting.md) — Connectivity debugging
 - [../README.md](../README.md) — Project overview

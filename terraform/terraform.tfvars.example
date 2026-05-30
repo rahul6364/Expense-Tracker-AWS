@@ -1,0 +1,18 @@
+# Copy to terraform.tfvars and customize. Never commit terraform.tfvars (gitignored).
+
+project_name = "expense-tracker"
+vpc_cidr     = "10.0.0.0/16"
+
+web_public_subnet_az1_cidr  = "10.0.1.0/24"
+web_public_subnet_az2_cidr  = "10.0.2.0/24"
+app_private_subnet_az1_cidr = "10.0.3.0/24"
+app_private_subnet_az2_cidr = "10.0.4.0/24"
+db_private_subnet_az1_cidr  = "10.0.5.0/24"
+db_private_subnet_az2_cidr  = "10.0.6.0/24"
+
+region              = "us-east-1"
+availability_zone_1 = "us-east-1a"
+availability_zone_2 = "us-east-1b"
+
+db_user     = "admin"
+db_password = "CHANGE_ME_STRONG_PASSWORD"

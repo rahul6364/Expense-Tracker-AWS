@@ -1,490 +1,332 @@
-# Expense Tracker — Production 3-Tier AWS Deployment
+# Expense Tracker — AWS 3-Tier Architecture
 
-[React](https://react.dev/)
-[Node.js](https://nodejs.org/)
-[Express](https://expressjs.com/)
-[MySQL](https://aws.amazon.com/rds/)
-[Docker](https://hub.docker.com/)
-[AWS](https://aws.amazon.com/)
-[Terraform](https://www.terraform.io/)
-[Nginx](https://nginx.org/)
-[Tailwind CSS](https://tailwindcss.com/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev/)
+[![Node.js](https://img.shields.io/badge/Node.js-18-339933?logo=node.js)](https://nodejs.org/)
+[![Terraform](https://img.shields.io/badge/Terraform-IaC-844FBA?logo=terraform)](https://www.terraform.io/)
+[![AWS](https://img.shields.io/badge/AWS-Cloud-FF9900?logo=amazon-aws)](https://aws.amazon.com/)
+[![Docker](https://img.shields.io/badge/Docker-Hub-2496ED?logo=docker)](https://www.docker.com/)
 
-A production-style, full-stack expense tracker engineered for **high availability**, **network isolation**, and **cost-aware** AWS infrastructure. The application is split into independently scalable Web, App, and Database tiers, each deployed with Docker on EC2 Auto Scaling Groups behind an Application Load Balancer. Infrastructure is provisioned with **Terraform**; the backend **bootstraps the database schema on startup** — no manual `CREATE TABLE` on RDS.
+**Production-style 3-tier AWS architecture provisioned using Terraform** — one `terraform apply` deploys **VPC**, **Multi-AZ** networking, **Application Load Balancer**, **Auto Scaling Groups**, **RDS MySQL**, and containerized frontend/backend workloads with **zero manual steps** after Docker images are pushed.
 
----
+Full-stack expense tracker: React + nginx (web tier), Node.js + Express (app tier), Amazon **RDS MySQL** (database tier). **Docker** images run on EC2 in **Private Subnets**; the ALB is the only public entry. **Infrastructure as Code** end-to-end.
 
-## Table of Contents
-
-- [Project Overview](#project-overview)
-- [Architecture](#architecture)
-- [AWS Services Used](#aws-services-used)
-- [Features](#features)
-- [Database Bootstrap](#database-bootstrap)
-- [Security Architecture](#security-architecture)
-- [FinOps Decisions](#finops-decisions)
-- [Deployment Architecture](#deployment-architecture)
-- [Deploy with Terraform](#deploy-with-terraform)
-- [Tech Stack](#tech-stack)
-- [Repository Structure](#repository-structure)
-- [Quick Start (Local)](#quick-start-local)
-- [Documentation](#documentation)
-- [API Reference](#api-reference)
-- [Screenshots & Diagrams](#screenshots--diagrams)
-- [Resume-Ready Highlights](#resume-ready-highlights)
-- [Future Improvements](#future-improvements)
-- [License](#license)
+**Quick deploy:** [docs/terraform-deployment.md](docs/terraform-deployment.md) · `cd terraform && terraform apply`
 
 ---
 
-## Project Overview
+## Key Achievements
 
-This project demonstrates end-to-end **DevOps and cloud engineering** skills by taking a monolithic container and refactoring it into a **true 3-tier architecture** suitable for AWS production workloads.
-
-| Tier         | Component                       | Hosting                                |
-| ------------ | ------------------------------- | -------------------------------------- |
-| **Web**      | React + Vite + Tailwind + nginx | Public subnets, External ALB           |
-| **App**      | Node.js + Express REST API      | Private app subnets, no public IP      |
-| **Database** | Amazon RDS for MySQL            | Private DB subnets, no internet access |
-
-Users access the React frontend through an **External Application Load Balancer**. API traffic is routed via **path-based listener rules** (`/api/*`) to backend instances in private subnets. The backend connects exclusively to **RDS MySQL** using environment-based credentials — no embedded database, no localhost fallbacks.
+- Provisioned complete AWS infrastructure using Terraform
+- Implemented Multi-AZ VPC architecture
+- Configured Application Load Balancer with path-based routing
+- Deployed frontend and backend using Auto Scaling Groups
+- Automated database schema initialization during application startup
+- Achieved zero-touch deployment using a single terraform apply
 
 ---
 
-## Architecture
-
-### High-Level Flow
-
-```
-                         ┌─────────────────────────────────────────┐
-                         │              Internet                   │
-                         └────────────────────┬────────────────────┘
-                                              │
-                                              ▼
-                         ┌─────────────────────────────────────────┐
-                         │     External ALB (Public Subnets)       │
-                         │  Listener Rules:                        │
-                         │    /api/*  → Backend Target Group       │
-                         │    /*      → Frontend Target Group      │
-                         └──────────────┬──────────────┬───────────┘
-                                        │              │
-                    ┌───────────────────┘              └───────────────────┐
-                    ▼                                                        ▼
-     ┌──────────────────────────┐                         ┌──────────────────────────┐
-     │  Frontend EC2 ASG        │                         │  Backend EC2 ASG         │
-     │  (Public Subnets)        │                         │  (Private App Subnets)   │
-     │  Docker: nginx + React   │                         │  Docker: Express API     │
-     │  Port 80                 │                         │  Port 4000               │
-     └──────────────────────────┘                         └────────────┬─────────────┘
-                                                                         │
-                                                                         ▼
-                                                         ┌──────────────────────────┐
-                                                         │  Amazon RDS MySQL        │
-                                                         │  (Private DB Subnets)    │
-                                                         │  Port 3306               │
-                                                         │  Schema auto-created     │
-                                                         │  on backend startup      │
-                                                         └──────────────────────────┘
-
-     Private subnets reach Docker Hub / updates via NAT Gateway
-```
-
-### Architecture Diagram (Placeholder)
-
-> *Add your exported architecture diagram here.*
-
-```
-docs/images/architecture-diagram.png
-```
-
-Recommended tools: draw.io, Lucidchart, or AWS Architecture Icons.
-
----
-
-## AWS Services Used
-
-| Service                       | Purpose                                                         |
-| ----------------------------- | --------------------------------------------------------------- |
-| **Amazon VPC**                | Isolated network with public and private subnets across 2 AZs   |
-| **Subnets**                   | Public (ALB, frontend), private app (backend), private DB (RDS) |
-| **Internet Gateway**          | Inbound/outbound traffic for public subnets                     |
-| **NAT Gateway**               | Outbound internet for private subnets (Docker pulls, updates)   |
-| **Route Tables**              | Public vs private routing (IGW / NAT)                           |
-| **Security Groups**           | Stateful, least-privilege tier-to-tier communication            |
-| **Application Load Balancer** | External ALB with path-based routing and health checks          |
-| **Target Groups**             | Separate groups for frontend (`:80`) and backend (`:4000`)      |
-| **EC2 Auto Scaling Groups**   | Independent scaling for web and app tiers                       |
-| **Launch Templates**          | AMI + user data for Docker deployment                           |
-| **Amazon RDS (MySQL)**        | Managed database in private DB subnets                          |
-| **Docker Hub**                | Container images for frontend and backend                       |
-
----
-
-## Features
+## Key features
 
 ### Application
 
-- Dashboard with total balance, income, and expense summary cards
-- Add transactions (title, amount, type, category, date)
-- Filterable transaction list with income/expense color coding
-- 6-month spending bar chart (Recharts)
-- Dark-themed UI with glassmorphism and responsive layout
+- Dashboard with balance, income, and expense summaries
+- CRUD transactions (title, amount, type, category, date)
+- 6-month spending chart (Recharts)
+- Dark UI with Tailwind CSS and responsive layout
 
-### Infrastructure
+### Infrastructure & DevOps
 
-- **Terraform IaC** — VPC, subnets, NAT, ALB, ASGs, RDS, security groups
-- **Decoupled tiers** — separate Docker images, ASGs, and security groups
-- **Path-based ALB routing** — single entry point for UI and API
-- **Health checks** — `GET /health` on both frontend and backend
-- **Environment-driven config** — `VITE_API_URL`, RDS credentials via env vars
-- **Multi-AZ resilience** — subnets and ASGs span two Availability Zones
-- **Private backend and database** — no direct internet exposure
-
-### Operations
-
-- **Automatic database bootstrap** — `transactions` table created on first backend startup if missing
-- **Fail-fast startup** — API does not listen until DB connectivity and schema check succeed
+- **3-tier separation** — Web, App, and Database tiers with independent ASGs
+- **Path-based ALB routing** — `/api/*` → backend, `/*` → frontend
+- **Private compute** — EC2 in private app subnets; ALB is the only public entry
+- **Terraform IaC** — VPC, NAT, ALB, RDS, ASG, security groups in one apply
+- **EC2 user data** — Installs Docker, pulls images, starts containers automatically
+- **Database bootstrap** — No manual schema setup on RDS
+- **SSM-ready EC2** — Session Manager access without SSH keys
+- **Multi-AZ** — Subnets and NAT Gateways span two Availability Zones for resilient networking
+- **Private Subnets** — App and database tiers isolated from direct internet access
 
 ---
 
-## Database Bootstrap
-
-On every backend startup, `bootstrap.js` runs **before** the HTTP server accepts traffic:
-
-1. Connect to MySQL (RDS) and ping the pool.
-2. Check `information_schema` for the `transactions` table.
-3. If missing, run `CREATE TABLE IF NOT EXISTS` with the application schema.
-4. Start Express normally.
-
-**Expected startup logs:**
+## Architecture overview
 
 ```
-Database connected successfully.
-Transactions table verified.          # existing deployments
-API server listening on 0.0.0.0:4000
+Internet
+    │
+    ▼
+┌───────────────────────────────────────┐
+│  Application Load Balancer (public)   │
+│  /api/*  → Backend ASG :4000          │
+│  /*      → Frontend ASG :80           │
+└───────────────┬───────────────────────┘
+                │
+    ┌───────────┴───────────┐
+    ▼                       ▼
+┌─────────────┐     ┌─────────────┐
+│ Frontend    │     │ Backend     │     Private app subnets
+│ Docker/nginx│     │ Docker/API  │     (NAT for egress)
+└─────────────┘     └──────┬──────┘
+                           │ MySQL :3306
+                           ▼
+                    ┌─────────────┐
+                    │ RDS MySQL   │     Private DB subnets
+                    └─────────────┘
 ```
 
-Or on a fresh RDS instance:
+**Note:** API requests go **Browser → ALB → Backend**, not through the frontend EC2. The frontend instance only serves static assets.
 
-```
-Database connected successfully.
-Transactions table created.
-API server listening on 0.0.0.0:4000
-```
+Detailed diagrams and Mermaid flows: **[docs/architecture.md](docs/architecture.md)**
 
-`backend/schema.sql` remains as a reference for local MySQL or manual troubleshooting; production deploys do not require running it by hand.
-
-For versioned schema evolution (columns, indexes, rollbacks), consider Flyway or Liquibase in a future iteration — app bootstrap is ideal for initial table creation only.
+![Architecture diagram](docs/images/architecture-diagram.png)
 
 ---
 
-## Security Architecture
+## AWS services used
 
-Defense-in-depth is applied at every layer. See [docs/security-architecture.md](docs/security-architecture.md) for the full breakdown.
-
-| Layer               | Control                                                            |
-| ------------------- | ------------------------------------------------------------------ |
-| **Network**         | Backend and RDS in private subnets; no public IPs on app/DB tier   |
-| **Security Groups** | ALB → EC2 only on required ports; backend → RDS on `3306` only     |
-| **Database**        | RDS not publicly accessible; credentials via environment variables |
-| **Application**     | CORS restricted via `CORS_ORIGINS`; no hardcoded secrets in images |
-| **Containers**      | Backend runs as non-root `node` user inside Alpine image           |
-
----
-
-## FinOps Decisions
-
-Cost optimization was considered alongside reliability for a portfolio / learning environment.
-
-| Decision                          | Rationale                                                     |
-| --------------------------------- | ------------------------------------------------------------- |
-| **t3.micro / t3.small EC2**       | Sufficient for demo workloads; easy to right-size later       |
-| **Single NAT Gateway**            | One NAT saves ~$32/mo vs one per AZ; acceptable for labs      |
-| **RDS db.t3.micro**               | Managed MySQL without self-hosting DB on EC2                  |
-| **Docker Hub (free tier)**        | Simple image hosting without ECR storage/transfer costs       |
-| **ALB over NLB**                  | Path-based HTTP routing; NLB unnecessary for this HTTP app    |
-| **Separate ASGs**                 | Scale frontend and backend independently under real load      |
-| **No ECS/Fargate (initially)**    | EC2 + Docker teaches launch templates and ASG fundamentals    |
-
-> **Tip:** Stop non-production RDS instances and scale ASGs to zero during idle periods to reduce monthly spend.
+| Service | Role in this project |
+|---------|----------------------|
+| **VPC** | Isolated network `10.0.0.0/16` |
+| **Subnets** | 2 public (ALB, NAT) + 2 private app (EC2) + 2 private DB (RDS) |
+| **Internet Gateway** | Public subnet internet access |
+| **NAT Gateway** | Outbound internet for private app subnets (2 AZs) |
+| **Route Tables** | Public, per-AZ private app, isolated DB |
+| **Security Groups** | Least-privilege: ALB → EC2 → RDS |
+| **Application Load Balancer** | `expenses-alb`, path-based routing |
+| **Target Groups** | `frontend-tg` (:80), `backend-tg` (:4000) |
+| **Auto Scaling Groups** | `frontend-sg`, `backend-sg` — frontend and backend tiers |
+| **Launch Templates** | Ubuntu 22.04 + user data |
+| **RDS MySQL** | `expense-tracker-db`, `expense_tracker` database |
+| **IAM** | EC2 instance profile for SSM |
+| **Docker Hub** | Container image registry |
 
 ---
 
-## Deployment Architecture
-
-| Component        | Subnet Type   | Port     | Image Source                              |
-| ---------------- | ------------- | -------- | ----------------------------------------- |
-| External ALB     | Public        | 80 / 443 | —                                         |
-| Frontend EC2 ASG | Public        | 80       | `rahul6364/expense-tracker-web:latest`    |
-| Backend EC2 ASG  | Private (app) | 4000     | `rahul6364/expense-tracker-api:latest`    |
-| RDS MySQL        | Private (db)  | 3306     | —                                         |
-
-### ALB Listener Rules (Path-Based Routing)
-
-| Priority | Condition        | Target Group             |
-| -------- | ---------------- | ------------------------ |
-| 1        | Path is `/api/*` | `backend-tg` (port 4000) |
-| Default  | `/*`             | `frontend-tg` (port 80)  |
-
-### Environment Variables
-
-**Frontend** (build-time):
-
-```bash
-VITE_API_URL=https://your-external-alb-dns.amazonaws.com
-```
-
-**Backend** (runtime on EC2):
-
-```bash
-DB_HOST=<rds-endpoint>
-DB_USER=<username>
-DB_PASS=<password>
-DB_NAME=expense_tracker
-DB_PORT=3306
-PORT=4000
-CORS_ORIGINS=https://your-external-alb-dns.amazonaws.com
-```
-
-Console-based walkthrough: [docs/aws-setup.md](docs/aws-setup.md)
-
----
-
-## Deploy with Terraform
-
-### Prerequisites
-
-- [Terraform](https://www.terraform.io/downloads) 1.x
-- AWS CLI configured (`aws configure`) with permissions for VPC, EC2, ALB, RDS, IAM
-- Docker images pushed to Docker Hub (or update image names in launch templates / user data)
-
-### Configure variables
-
-Create `terraform/terraform.tfvars` (gitignored — never commit secrets):
-
-```hcl
-project_name = "expense-tracker"
-vpc_cidr     = "10.0.0.0/16"
-
-web_public_subnet_az1_cidr  = "10.0.1.0/24"
-web_public_subnet_az2_cidr  = "10.0.2.0/24"
-app_private_subnet_az1_cidr = "10.0.3.0/24"
-app_private_subnet_az2_cidr = "10.0.4.0/24"
-db_private_subnet_az1_cidr  = "10.0.5.0/24"
-db_private_subnet_az2_cidr  = "10.0.6.0/24"
-
-region              = "us-east-1"
-availability_zone_1 = "us-east-1a"
-availability_zone_2 = "us-east-1b"
-
-db_user     = "admin"
-db_password = "CHANGE_ME_STRONG_PASSWORD"
-```
-
-### Apply infrastructure
-
-```bash
-cd terraform
-terraform init
-terraform plan
-terraform apply
-```
-
-Useful output after apply:
-
-```bash
-terraform output rds_endpoint
-```
-
-### Deploy application code changes
-
-After changing the backend (e.g. bootstrap logic):
-
-```bash
-cd backend
-docker build -t rahul6364/expense-tracker-api:latest .
-docker push rahul6364/expense-tracker-api:latest
-```
-
-Refresh backend instances (replace with your ASG name from Terraform):
-
-```bash
-aws autoscaling start-instance-refresh --auto-scaling-group-name <backend-asg-name>
-```
-
-Or terminate backend instances so the ASG launches new ones with the updated image.
-
----
-
-## Tech Stack
-
-| Layer          | Technologies                                                   |
-| -------------- | -------------------------------------------------------------- |
-| **Frontend**   | React 18, Vite, Tailwind CSS, Recharts, Lucide Icons, nginx    |
-| **Backend**    | Node.js 18, Express, mysql2, CORS, startup schema bootstrap    |
-| **Database**   | Amazon RDS for MySQL 8.x                                       |
-| **Containers** | Docker, Docker Hub, multi-stage builds                         |
-| **Cloud**      | VPC, ALB, EC2 ASG, NAT Gateway, Security Groups, RDS           |
-| **IaC**        | Terraform (AWS provider ~> 6.0)                                |
-
----
-
-## Repository Structure
+## Repository structure
 
 ```
 threeTier/
-├── frontend/                 # Web tier
-│   ├── Dockerfile            # Multi-stage: Node build → nginx:alpine
-│   ├── nginx.conf            # SPA + /health for ALB
+├── frontend/                 # React + Vite + Tailwind + nginx
+│   ├── Dockerfile
+│   ├── nginx.conf
 │   └── src/
-├── backend/                  # App tier
-│   ├── Dockerfile            # Node 18 Alpine, non-root
-│   ├── server.js             # Express API + startup orchestration
-│   ├── db.js                 # MySQL connection pool
-│   ├── bootstrap.js          # RDS schema bootstrap on startup
-│   └── schema.sql            # Reference DDL (optional for local dev)
-├── terraform/                # AWS infrastructure
-│   ├── main.tf               # VPC, subnets
-│   ├── route_table.tf        # IGW, NAT, route tables
+├── backend/                  # Express REST API
+│   ├── server.js
+│   ├── db.js
+│   ├── bootstrap.js          # Auto schema on startup
+│   └── schema.sql            # Reference DDL
+├── terraform/                # AWS Infrastructure as Code
+│   ├── main.tf               # VPC, subnets, IGW, NAT
+│   ├── route_table.tf
 │   ├── security_groups.tf
 │   ├── alb.tf
 │   ├── asg.tf
 │   ├── launch_template.tf
 │   ├── rds.tf
 │   ├── iam.tf
-│   ├── scripts/              # EC2 user data (Docker pull/run)
-│   └── terraform.tfvars      # Local only (gitignored)
-├── docs/
-│   ├── aws-setup.md
-│   ├── security-architecture.md
-│   └── troubleshooting.md
-└── README.md
+│   ├── data.tf
+│   ├── output.tf
+│   ├── varible.tf
+│   ├── scripts/
+│   │   ├── frontend.sh       # EC2 user data
+│   │   └── backend.sh
+│   └── terraform.tfvars.example
+└── docs/
+    ├── README.md             # Documentation index
+    ├── architecture.md
+    ├── terraform-deployment.md
+    ├── aws-setup.md          # Manual Console guide
+    ├── troubleshooting.md
+    └── images/               # Your screenshots go here
 ```
 
 ---
 
-## Quick Start (Local)
+## Terraform folder structure
 
-### Prerequisites
+| File | Creates / configures |
+|------|----------------------|
+| `provider.tf` | AWS provider, region from variable |
+| `varible.tf` | VPC CIDRs, AZs, RDS credentials |
+| `main.tf` | VPC, 6 subnets, IGW, 2× NAT + EIP |
+| `route_table.tf` | Public, private app (per AZ), private DB routes |
+| `security_groups.tf` | `alb-sg`, `frontend-sg`, `backend-sg`, `rds-sg` |
+| `data.tf` | Ubuntu 22.04 AMI |
+| `iam.tf` | EC2 role + SSM policy |
+| `rds.tf` | DB subnet group + MySQL instance |
+| `alb.tf` | ALB, target groups, `/api/*` listener rule |
+| `launch_template.tf` | Launch templates + user data |
+| `asg.tf` | Frontend and backend Auto Scaling Groups |
+| `output.tf` | `application_url`, `alb_dns_name`, `rds_endpoint` |
 
-- Node.js 18+
-- npm
-- MySQL 8.x (local instance with database `expense_tracker` created)
+---
 
-### Backend
+## Deployment workflow (Terraform)
 
-```bash
-cd backend
-# Create .env with DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT
-npm install
-npm run dev
-```
-
-The API bootstraps the `transactions` table automatically — you do not need to run `schema.sql` unless you prefer manual setup.
-
-Health check: [http://localhost:4000/health](http://localhost:4000/health)
-
-### Frontend
-
-```bash
-cd frontend
-# VITE_API_URL=http://localhost:4000
-npm install
-npm run dev
-```
-
-App: [http://localhost:5173](http://localhost:5173)
-
-### Build Docker Images Locally
+Primary path — infrastructure and application runtime in one apply (after Docker images are on Docker Hub):
 
 ```bash
-# Backend
-cd backend && docker build -t expense-tracker-api .
+# 1. Push images to Docker Hub
+cd backend && docker build -t rahul6364/expense-tracker-api:latest . && docker push rahul6364/expense-tracker-api:latest
+cd ../frontend && docker build --build-arg VITE_API_URL= -t rahul6364/expense-tracker-web:latest . && docker push rahul6364/expense-tracker-web:latest
 
-# Frontend
-cd frontend && docker build \
-  --build-arg VITE_API_URL=http://localhost:4000 \
-  -t expense-tracker-web .
+# 2. Configure Terraform
+cd ../terraform
+cp terraform.tfvars.example terraform.tfvars   # edit db_password
+
+# 3. Deploy
+terraform init
+terraform validate
+terraform plan
+terraform apply
+
+# 4. Open app
+terraform output application_url
 ```
+
+**Full guide:** [docs/terraform-deployment.md](docs/terraform-deployment.md)
+
+### Local development
+
+```bash
+cd backend && npm install && npm run dev    # :4000
+cd frontend && npm install && npm run dev  # :5173
+```
+
+---
+
+## Screenshots
+
+> Replace placeholders below with your own captures. See **[Screenshot Placement Checklist](#screenshot-placement-checklist)** for exact filenames and locations.
+
+### Infrastructure
+
+| Description | Placeholder |
+|-------------|-------------|
+| VPC and subnets | ![VPC subnets](docs/images/vpc-subnets.png) |
+| Application Load Balancer | ![ALB overview](docs/images/alb-overview.png) |
+| Healthy target groups | ![ALB healthy](docs/images/alb-healthy.png) |
+| Listener rules | ![ALB rules](docs/images/alb-listener-rules.png) |
+| RDS instance | ![RDS](docs/images/rds-instance.png) |
+| Auto Scaling Groups | ![ASG](docs/images/asg-instances.png) |
+| Terraform apply success | ![Terraform apply](docs/images/terraform-apply-success.png) |
+
+### Application
+
+| Description | Placeholder |
+|-------------|-------------|
+| Dashboard | ![Dashboard](docs/images/app-dashboard.png) |
+| Transactions | ![Transactions](docs/images/app-transactions.png) |
+| Spending chart | ![Chart](docs/images/app-chart.png) |
+
+---
+
+## Cost considerations
+
+This project is intended for **learning and portfolio** use. Running it 24/7 in AWS incurs real charges.
+
+**Approximate monthly cost (us-east-1, always on):**
+
+| Resource | Est. cost |
+|----------|-----------|
+| 2× NAT Gateways | ~$65/month (+ data processing) |
+| Application Load Balancer | ~$16/month (+ LCU) |
+| RDS `db.t3.micro` | ~$12/month |
+| 2× EC2 `t3.micro` (ASGs) | ~$17/month |
+| **Total (rough)** | **~$110+/month** |
+
+**Always run `terraform destroy` when you finish testing** to avoid ongoing NAT, ALB, RDS, and EC2 charges.
+
+---
+
+## Lessons learned
+
+- **Public vs private subnet design** — ALB and NAT live in public subnets; app and DB tiers stay private with controlled egress
+- **ALB health checks and troubleshooting** — Target groups must match container ports and paths (`/` for frontend, `/health` for backend)
+- **RDS connectivity via Security Groups** — Only the backend SG should reach MySQL on port 3306; no public RDS access
+- **Terraform dependency management** — RDS endpoint injected into backend user data via `templatefile`; apply order matters for first boot
+- **Automated database bootstrap patterns** — Application-owned schema (`bootstrap.js`) vs manual SQL or migration tools
+- **Infrastructure provisioning vs application provisioning** — Terraform builds the platform; user data + Docker deliver the app; images must exist before EC2 boots
+
+---
+
+## Historical / learning path (manual AWS)
+
+Before Terraform automation, this architecture was built **step-by-step in the AWS Console** to learn VPC, ALB, RDS, and ASG fundamentals. That walkthrough is preserved for education only — **not the recommended deploy path**.
+
+| Phase | Description |
+|-------|-------------|
+| **Manual AWS (learning)** | Console-based VPC, ALB, RDS, ASG, Docker — [docs/aws-setup.md](docs/aws-setup.md) |
+| **Terraform (current)** | Full stack in `terraform/` + EC2 user data — [docs/terraform-deployment.md](docs/terraform-deployment.md) |
+| **Schema automation** | `backend/bootstrap.js` — `CREATE TABLE IF NOT EXISTS` on API startup |
+
+---
+
+## API reference
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | `{ "status": "ok" }` |
+| `GET` | `/api/transactions` | List transactions |
+| `POST` | `/api/transactions` | Create transaction |
+| `DELETE` | `/api/transactions/:id` | Delete transaction |
 
 ---
 
 ## Documentation
 
-| Document                                                       | Description                                 |
-| -------------------------------------------------------------- | ------------------------------------------- |
-| [docs/aws-setup.md](docs/aws-setup.md)                         | Full AWS deployment guide — VPC through ALB |
-| [docs/security-architecture.md](docs/security-architecture.md) | Traffic flow, SG rules, subnet isolation    |
-| [docs/troubleshooting.md](docs/troubleshooting.md)             | Common deployment issues and fixes          |
+| Document | Description |
+|----------|-------------|
+| [docs/README.md](docs/README.md) | Documentation index + screenshot checklist |
+| [docs/architecture.md](docs/architecture.md) | VPC, NAT, SGs, Mermaid diagrams |
+| [docs/terraform-deployment.md](docs/terraform-deployment.md) | `init` → `destroy` |
+| [docs/aws-setup.md](docs/aws-setup.md) | Historical manual Console guide (learning) |
+| [docs/troubleshooting.md](docs/troubleshooting.md) | ALB, RDS, Docker, DB errors |
+| [docs/security-architecture.md](docs/security-architecture.md) | Security deep dive |
+| [terraform/README.md](terraform/README.md) | Terraform quick reference |
 
 ---
 
-## API Reference
+## Future improvements
 
-| Method   | Endpoint                | Description                                 |
-| -------- | ----------------------- | ------------------------------------------- |
-| `GET`    | `/health`               | Backend health check — `{ "status": "ok" }` |
-| `GET`    | `/api/transactions`     | List all transactions                       |
-| `POST`   | `/api/transactions`     | Create a transaction                        |
-| `DELETE` | `/api/transactions/:id` | Delete a transaction                        |
-
----
-
-## Screenshots & Diagrams
-
-> *Replace placeholders with your own assets before publishing to GitHub.*
-
-### Application UI
-
-| Dashboard                         | Transaction List                     | Spending Chart                |
-| --------------------------------- | ------------------------------------ | ----------------------------- |
-| *Add `docs/images/dashboard.png`* | *Add `docs/images/transactions.png`* | *Add `docs/images/chart.png`* |
-
-### AWS Console
-
-| VPC & Subnets               | ALB Target Groups              | RDS Instance                |
-| --------------------------- | ------------------------------ | --------------------------- |
-| *Add `docs/images/vpc.png`* | *Add `docs/images/alb-tg.png`* | *Add `docs/images/rds.png`* |
-
-### Network Diagram
-
-```
-docs/images/architecture-diagram.png   ← Full 3-tier diagram
-docs/images/security-groups.png        ← SG rule matrix (optional)
-```
+- GitHub Actions CI/CD — build images, `terraform plan`, deploy on merge
+- HTTPS with ACM certificate on ALB
+- AWS Secrets Manager for RDS credentials
+- Flyway/Liquibase for versioned schema migrations
+- CloudWatch logs, metrics, and alarms
+- AWS WAF on ALB
+- Multi-AZ RDS and larger ASG capacity
+- Amazon ECR instead of Docker Hub
 
 ---
 
-## Resume-Ready Highlights
+## Screenshot Placement Checklist
 
-Use these bullet points on your resume or in interviews:
+Capture these from your AWS account and app after a successful deploy. Save files under **`docs/images/`** using **exact filenames**.
 
-- Designed and deployed a **production-style 3-tier architecture** on AWS (Web / App / Database) with **path-based ALB routing** and **Auto Scaling Groups** across **2 Availability Zones**
-- Provisioned infrastructure with **Terraform** (VPC, NAT, ALB, ASG, RDS, security groups) for repeatable environments
-- Implemented **automatic database bootstrap** on backend startup so RDS requires zero manual schema setup
-- Refactored a monolithic Docker container into **independently scalable frontend and backend services**, published to **Docker Hub** and deployed on EC2
-- Implemented **VPC network segmentation** with public and private subnets, **NAT Gateway**, and **least-privilege Security Groups**
-- Configured **ALB health checks**, launch templates, and **environment-driven** configuration (`VITE_API_URL`, RDS credentials)
-- Built a responsive **React + Tailwind** dashboard with REST API integration and containerized **nginx** static delivery
+| # | Filename | What to capture | Used in |
+|---|----------|-----------------|---------|
+| 1 | `architecture-diagram.png` | Your draw.io/Lucidchart 3-tier diagram (optional if using repo Mermaid only) | README, architecture.md |
+| 2 | `vpc-subnets.png` | VPC → Subnets — 6 subnets (2 public, 4 private) | README, architecture.md |
+| 3 | `alb-overview.png` | EC2 → Load Balancers → `expenses-alb` | README, terraform-deployment.md, troubleshooting.md |
+| 4 | `alb-healthy.png` | Target Groups → both groups → **healthy** targets | README, terraform-deployment.md, troubleshooting.md |
+| 5 | `alb-listener-rules.png` | ALB listener rules: `/api/*` + default | README, architecture.md |
+| 6 | `rds-instance.png` | RDS → `expense-tracker-db` → private, endpoint visible | README, terraform-deployment.md, architecture.md |
+| 7 | `asg-instances.png` | Auto Scaling → `frontend-sg` / `backend-sg` instances | README |
+| 8 | `ec2-docker-ps.png` | SSM on backend → `sudo docker ps` | terraform-deployment.md |
+| 9 | `app-dashboard.png` | Browser → ALB URL → dashboard | README |
+| 10 | `app-transactions.png` | Transaction list with data | README |
+| 11 | `app-chart.png` | Spending chart visible | README |
+| 12 | `terraform-apply-success.png` | Terminal showing successful `terraform apply` + outputs | README, terraform-deployment.md |
 
----
+**Steps:** Deploy → wait for healthy targets → capture PNGs → place in `docs/images/` → commit.
 
-## Future Improvements
-
-- **CI/CD pipeline** — GitHub Actions to build, test, push Docker images, and run `terraform plan`
-- **Schema migrations** — Flyway or Liquibase for versioned DDL beyond initial bootstrap
-- **HTTPS / ACM** — TLS certificate on External ALB
-- **AWS Secrets Manager** — rotate RDS credentials without redeploying EC2
-- **CloudWatch** — centralized logs, metrics, and alarms for ASG / ALB / RDS
-- **WAF** — rate limiting and OWASP rule sets on External ALB
-- **Multi-AZ RDS** — enable automatic failover for database HA
-- **Private Docker registry** — migrate from Docker Hub to ECR with IAM-scoped pulls
+Duplicate checklist: [docs/README.md](docs/README.md#screenshot-placement-checklist)
 
 ---
 
 ## License
 
-This project is open source and available for portfolio and educational use. Add your preferred license (e.g., MIT) here.
+Open source for portfolio and educational use. Add MIT or your preferred license.
 
 ---
 
