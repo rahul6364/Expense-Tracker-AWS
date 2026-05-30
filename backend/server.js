@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const db = require('./db');
+const { bootstrapDatabase } = require('./bootstrap');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -78,6 +79,16 @@ app.delete('/api/transactions/:id', async (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`API server listening on 0.0.0.0:${PORT}`);
-});
+async function start() {
+  try {
+    await bootstrapDatabase(db);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`API server listening on 0.0.0.0:${PORT}`);
+    });
+  } catch (err) {
+    console.error('Server startup failed:', err);
+    process.exit(1);
+  }
+}
+
+start();

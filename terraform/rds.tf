@@ -16,7 +16,7 @@ resource "aws_db_instance" "mysql_rds" {
   storage_type      = "gp2"
 
   engine         = "mysql"
-  engine_version = "8.0"
+  # engine_version = "8.0"
 
   instance_class = "db.t3.micro"
 
@@ -37,6 +37,6 @@ resource "aws_db_instance" "mysql_rds" {
   skip_final_snapshot = true
 
   tags = {
-    Name = "expense-tracker-rds"
+    Name = "expense-tracker-db-subnet-group"
   }
 }

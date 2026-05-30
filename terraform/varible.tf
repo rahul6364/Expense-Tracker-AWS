@@ -54,6 +54,7 @@ variable "db_user" {
 variable "db_password" {
   type        = string
   description = "The password for the db"
+  sensitive = true
 }
 # variable "rds_endpoint" {
 #   type        = string

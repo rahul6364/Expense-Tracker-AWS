@@ -21,6 +21,6 @@ docker run -d \
   -e DB_USER=${db_user} \
   -e DB_PASS=${db_password} \
   -e DB_NAME="expense_tracker" \
-  -e DB_PORT=3306\
+  -e DB_PORT=3306 \
   --restart unless-stopped \
   rahul6364/expense-tracker-api:latest
