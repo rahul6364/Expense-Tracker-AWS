@@ -25,14 +25,14 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: terrafrom format check
-        run: terrafrom fmt -check -recursive
+      - name: terraform format check
+        run: terraform fmt -check -recursive
       
       - name: Initialize Terraform
-        run: terrafrom init -backend=false
+        run: terraform init -backend=false
 
-      - name: terrafrom validate
-        run: terrafrom validate
+      - name: terraform validate
+        run: terraform validate
 
-      - name: terrafrom plan
-        run: terrafrom plan -lock=false
+      - name: terraform plan
+        run: terraform plan -lock=false
