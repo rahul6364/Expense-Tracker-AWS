@@ -1,0 +1,37 @@
+name: Terraform PR check
+on:
+  pull_request:
+    paths:
+        - 'terraform/**'
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{secrets.AWS_ROLE_ARN}}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: terrafrom format check
+        run: terrafrom fmt -check -recursive
+      
+      - name: Initialize Terraform
+        run: terrafrom init -backend=false
+
+      - name: terrafrom validate
+        run: terrafrom validate
+
+      - name: terrafrom plan
+        run: terrafrom plan -lock=false
