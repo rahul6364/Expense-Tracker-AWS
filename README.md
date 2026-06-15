@@ -1,4 +1,4 @@
-# Expense Tracker — AWS 3-Tier Architecture
+# Expense Tracker — AWS 3-Tier Architecture Provisioning with Terraform and aws OIDC
 
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-18-339933?logo=node.js)](https://nodejs.org/)
