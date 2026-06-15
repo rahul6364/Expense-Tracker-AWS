@@ -6,7 +6,7 @@ terraform {
     }
   }
 
-    backend "s3" {
+  backend "s3" {
     bucket       = "rahul-expense-tracker-tf-state"
     key          = "terraform/terraform.tfstate"
     region       = "us-east-1"
