@@ -36,3 +36,18 @@ jobs:
 
       # - name: terraform plan
       #   run: terraform plan -lock=false
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Initialize TFLint
+        run: tflint --init
+
+      - name: Run TFLint
+        run: tflint
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform
+          framework: terraform
+          skip_checkov_version_check: true
