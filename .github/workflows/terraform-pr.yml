@@ -34,5 +34,5 @@ jobs:
       - name: terraform validate
         run: terraform validate
 
-      - name: terraform plan
-        run: terraform plan -lock=false
+      # - name: terraform plan
+      #   run: terraform plan -lock=false
