@@ -36,8 +36,8 @@ resource "aws_db_instance" "mysql_rds" {
     aws_security_group.rds_sg.id
   ]
 
-  skip_final_snapshot = true
-  copy_tags_to_snapshot = true
+  skip_final_snapshot        = true
+  copy_tags_to_snapshot      = true
   auto_minor_version_upgrade = true
 
   tags = {
