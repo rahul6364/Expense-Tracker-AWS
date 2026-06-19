@@ -1,3 +1,5 @@
+#checkov:skip=CKV_AWS_378: Backend communication remains HTTP inside private VPC
+
 resource "aws_lb_target_group" "frontend_tg" {
   name     = "frontend-tg"
   port     = 80
@@ -20,6 +22,8 @@ resource "aws_lb_target_group" "frontend_tg" {
     Name = "frontend-tg"
   }
 }
+#checkov:skip=CKV_AWS_378: Backend communication remains HTTP inside private VPC
+
 resource "aws_lb_target_group" "backend_tg" {
   name     = "backend-tg"
   port     = 4000
@@ -42,6 +46,7 @@ resource "aws_lb_target_group" "backend_tg" {
     Name = "backend-tg"
   }
 }
+#checkov:skip=CKV2_AWS_28: WAF omitted for portfolio project to avoid additional cost
 
 resource "aws_lb" "expense_alb" {
   name               = "expenses-alb"
@@ -57,6 +62,8 @@ resource "aws_lb" "expense_alb" {
     Name = "Expenses-tracker-alb"
   }
 }
+#checkov:skip=CKV_AWS_2: HTTPS will be implemented in a later phase using ACM certificates
+#checkov:skip=CKV_AWS_103: TLS policy not applicable until HTTPS listener is configured
 resource "aws_lb_listener" "http_listener" {
   load_balancer_arn = aws_lb.expense_alb.arn
 

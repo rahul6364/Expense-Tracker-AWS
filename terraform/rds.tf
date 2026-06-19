@@ -8,6 +8,8 @@ resource "aws_db_subnet_group" "rds_subnet_group" {
     name = "expens-tracker-db-subent-group"
   }
 }
+#checkov:skip=CKV_AWS_157: Multi-AZ disabled to reduce cost in development environment
+#checkov:skip=CKV_AWS_161: Application uses standard MySQL credentials instead of IAM authentication
 
 resource "aws_db_instance" "mysql_rds" {
   identifier = "expense-tracker-db"
@@ -35,6 +37,8 @@ resource "aws_db_instance" "mysql_rds" {
   ]
 
   skip_final_snapshot = true
+  copy_tags_to_snapshot = true
+  auto_minor_version_upgrade = true
 
   tags = {
     Name = "expense-tracker-db-subnet-group"
