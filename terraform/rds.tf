@@ -41,7 +41,7 @@ resource "aws_db_instance" "mysql_rds" {
   skip_final_snapshot        = true
   copy_tags_to_snapshot      = true
   auto_minor_version_upgrade = true
-  storage_encrypted = true
+  storage_encrypted          = true
 
   tags = {
     Name = "expense-tracker-db-subnet-group"
