@@ -47,7 +47,9 @@ resource "aws_lb_target_group" "backend_tg" {
   }
 }
 #checkov:skip=CKV2_AWS_28: WAF omitted for portfolio project to avoid additional cost
-
+#checkov:skip=CKV_AWS_91: ALB access logs will be configured in observability phase
+#checkov:skip=CKV_AWS_131: Header sanitization will be implemented with HTTPS/WAF phase
+#checkov:skip=CKV_AWS_150: Deletion protection disabled for development environment
 resource "aws_lb" "expense_alb" {
   name               = "expenses-alb"
   internal           = false
