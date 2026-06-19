@@ -1,5 +1,4 @@
 #checkov:skip=CKV_AWS_378: Backend communication remains HTTP inside private VPC
-
 resource "aws_lb_target_group" "frontend_tg" {
   name     = "frontend-tg"
   port     = 80
@@ -23,7 +22,6 @@ resource "aws_lb_target_group" "frontend_tg" {
   }
 }
 #checkov:skip=CKV_AWS_378: Backend communication remains HTTP inside private VPC
-
 resource "aws_lb_target_group" "backend_tg" {
   name     = "backend-tg"
   port     = 4000
@@ -57,9 +55,6 @@ resource "aws_lb" "expense_alb" {
   security_groups    = [aws_security_group.alb_sg.id]
   subnets = [aws_subnet.web_public_subnet_az1.id,
   aws_subnet.web_public_subnet_az2.id]
-
-  enable_deletion_protection = false
-
   tags = {
     Name = "Expenses-tracker-alb"
   }

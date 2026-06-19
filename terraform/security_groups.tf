@@ -27,8 +27,9 @@ resource "aws_vpc_security_group_egress_rule" "alb_sg_egress_rule" {
 }
 
 resource "aws_security_group" "frontend_sg" {
-  name   = "frontend-sg"
-  vpc_id = aws_vpc.main.id
+  description = "Security group for the frontend"
+  name        = "frontend-sg"
+  vpc_id      = aws_vpc.main.id
 }
 resource "aws_vpc_security_group_ingress_rule" "frontend_sg_ingress_rule_http" {
   security_group_id            = aws_security_group.frontend_sg.id
