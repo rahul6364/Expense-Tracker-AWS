@@ -3,12 +3,16 @@ on:
   pull_request:
     paths:
         - 'terraform/**'
+env:
+  db_user: ${{ secrets.DB_USER }}
+  db_password: ${{ secrets.DB_PASSWORD }}
 jobs:
   terraform:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: terraform
+    
     permissions:
       id-token: write
       contents: read
