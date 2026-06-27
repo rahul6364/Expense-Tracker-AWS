@@ -29,13 +29,11 @@ jobs:
         run: terraform fmt -check -recursive
       
       - name: Initialize Terraform
-        run: terraform init -backend=false
+        run: terraform init
 
       - name: terraform validate
         run: terraform validate
 
-      # - name: terraform plan
-      #   run: terraform plan -lock=false
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v4
 
@@ -45,13 +43,13 @@ jobs:
       - name: Run TFLint
         run: tflint
       # Debug files to check for checkov:skip comments
-      - name: Debug files
-        run: |
-          echo "===== RDS ====="
-          cat rds.tf
-          echo "===== ALB ====="
-          grep -n "checkov:skip" alb.tf
-          grep -n "checkov:skip" rds.tf
+      # - name: Debug files
+      #   run: |
+      #     echo "===== RDS ====="
+      #     cat rds.tf
+      #     echo "===== ALB ====="
+      #     grep -n "checkov:skip" alb.tf
+      #     grep -n "checkov:skip" rds.tf
 
       - name: Run Checkov
         uses: bridgecrewio/checkov-action@v12
@@ -59,5 +57,12 @@ jobs:
           directory: terraform
           framework: terraform
           soft_fail: true
-          
-          
+      
+      - name: terraform plan
+        run: terraform plan  -out=tfplan
+        
+      - name: upload plan to artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform plan
+          path: terraform/tfplan
