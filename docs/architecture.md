@@ -213,8 +213,8 @@ See [security-architecture.md](security-architecture.md) for extended threat-mod
 
 | Component | Terraform resource | User data script |
 |-----------|-------------------|------------------|
-| Frontend ASG | `aws_autoscaling_group.frontend_asg` (`frontend-sg`) | `scripts/frontend.sh` |
-| Backend ASG | `aws_autoscaling_group.backend_asg` (`backend-sg`) | `scripts/backend.sh` |
+| Frontend ASG | `aws_autoscaling_group.frontend_asg` (`frontend-asg`) | `scripts/frontend.sh` |
+| Backend ASG | `aws_autoscaling_group.backend_asg` (`backend-asg`) | `scripts/backend.sh` |
 
 **On instance boot (user data):**
 

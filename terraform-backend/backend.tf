@@ -1,5 +1,12 @@
 resource "aws_s3_bucket" "terraform_state" {
-  bucket = "rahul-expense-tracker-tf-state"
+  bucket        = "rahul-expense-tracker-tf-state"
+  force_destroy = false
+  tags = {
+    Name        = "terraform-state-bucket"
+    Environment = "dev"
+    ManagedBy   = "Terraform"
+    Project     = "Expense-Tracker"
+  }
 }
 
 resource "aws_s3_bucket_versioning" "versioning" {

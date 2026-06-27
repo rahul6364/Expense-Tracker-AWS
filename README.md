@@ -6,26 +6,45 @@
 [![AWS](https://img.shields.io/badge/AWS-Cloud-FF9900?logo=amazon-aws)](https://aws.amazon.com/)
 [![Docker](https://img.shields.io/badge/Docker-Hub-2496ED?logo=docker)](https://www.docker.com/)
 [![GitHub Actions](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=githubactions)](https://github.com/features/actions)
+[![OIDC Authentication](https://img.shields.io/badge/OIDC-Authentication-232F3E?logo=openid)](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)
+[![No Long-Lived AWS Keys](https://img.shields.io/badge/AWS-No%20Static%20Keys-success)](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html)
 
-**Production-inspired 3-tier AWS architecture provisioned using Terraform** — a portfolio-grade **DevOps** project demonstrating **Infrastructure as Code**, **CI/CD**, **OIDC authentication**, security scanning, and zero-touch application deployment on **AWS** (`us-east-1`).
+**Production-inspired 3-tier AWS architecture defined in Terraform** — a portfolio-grade **DevOps** project demonstrating **Infrastructure as Code**, **CI/CD**, **OIDC authentication**, and security scanning on **AWS** (`us-east-1`).
 
-One `terraform apply` deploys **VPC**, **Multi-AZ** networking, **Application Load Balancer**, **Auto Scaling Groups**, **RDS MySQL**, and containerized workloads. **GitHub Actions** validates every Terraform PR with **TFLint**, **Checkov**, and **GitLeaks** — no long-lived AWS access keys.
+Terraform configuration is capable of provisioning the complete infrastructure stack with a single `terraform apply`. **AWS deployment validation is planned** after remote state backend implementation. **GitHub Actions** validates every Terraform PR with **TFLint**, **Checkov**, and **GitLeaks**.
 
-**Quick deploy:** [docs/terraform-deployment.md](docs/terraform-deployment.md) · `cd terraform && terraform apply`
+**Deploy guide (when ready):** [docs/terraform-deployment.md](docs/terraform-deployment.md)
+
+---
+
+## Project Status
+
+✅ Infrastructure code complete  
+✅ CI/CD foundation complete  
+✅ OIDC authentication complete  
+✅ Security scanning complete  
+
+⏳ Remote state backend  
+⏳ CloudWatch monitoring  
+⏳ SNS alerting  
+⏳ HTTPS / ACM  
+⏳ WAF  
+⏳ AWS deployment validation  
+
+AWS deployment validation planned after backend bootstrap phase.
 
 ---
 
 ## Key Achievements
 
-- Provisioned complete **AWS** infrastructure using **Terraform**
-- Implemented **Multi-AZ VPC** architecture with **Private Subnets** for app and database tiers
+- Authored complete **AWS** infrastructure as **Terraform** configuration (ready to apply)
+- Implemented **highly available multi-subnet architecture across two Availability Zones**
 - Configured **Application Load Balancer** with path-based routing (`/api/*` → backend)
-- Deployed frontend and backend using **Auto Scaling Groups** with **Docker** on EC2
-- Automated database schema initialization during application startup (`bootstrap.js`)
-- Achieved zero-touch deployment using a single `terraform apply`
+- Designed **Auto Scaling Groups** (`frontend-asg`, `backend-asg`) with **Docker** on EC2
+- Automated database schema initialization in application code (`bootstrap.js`)
 - Implemented **GitHub Actions CI/CD** with **OIDC** passwordless AWS authentication
 - Integrated **TFLint**, **Checkov**, and **GitLeaks** for IaC quality and security scanning
-- Enabled **IMDSv2** on EC2 and **RDS storage encryption**
+- Enabled **IMDSv2** on EC2 and **RDS storage encryption** in Terraform
 - Designed **S3 remote state** backend with native lock files (`use_lockfile`)
 
 ---
@@ -96,11 +115,11 @@ Detailed Mermaid diagrams: **[docs/architecture.md](docs/architecture.md)**
 | **Internet Gateway** | Public subnet ingress/egress |
 | **NAT Gateway** | Private subnet outbound (2 AZs) |
 | **Route Tables** | Public, per-AZ private app, isolated DB |
-| **Security Groups** | ALB → frontend/backend → RDS (least privilege) |
+| **Security Groups** | `alb-sg`, `frontend-sg`, `backend-sg`, `rds-sg` — least privilege |
 | **Application Load Balancer** | Path-based routing, target groups |
-| **Auto Scaling Groups** | `frontend-sg`, `backend-sg` |
+| **Auto Scaling Groups** | `frontend-asg`, `backend-asg` |
 | **Launch Templates** | Ubuntu 22.04, IMDSv2, user data |
-| **RDS MySQL** | Encrypted storage, private subnets |
+| **RDS MySQL** | Encrypted storage, private subnets (single-AZ in current config) |
 | **IAM** | EC2 instance profile (SSM), GitHub Actions OIDC role |
 | **Docker Hub** | Container images |
 
@@ -158,17 +177,20 @@ Deep dive: [docs/security-architecture.md](docs/security-architecture.md)
 
 ### GitHub Actions OIDC authentication
 
-Passwordless AWS access — no access keys stored in GitHub secrets.
+Most projects store `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in GitHub secrets. This project uses **passwordless OIDC** — no long-lived credentials in the repository.
 
 ```
-GitHub Actions → OIDC token → AWS IAM Role → temporary credentials → Terraform
+GitHub Actions → OIDC token → sts:AssumeRoleWithWebIdentity → IAM Role → temporary credentials
 ```
 
 | AWS component | Purpose |
 |---------------|---------|
-| GitHub OIDC provider | Trust GitHub as identity source |
-| IAM role for Actions | Assumed via `secrets.AWS_ROLE_ARN` |
-| Trust + permission policies | Scoped to CI operations |
+| **GitHub OIDC provider** | Trust GitHub as an identity source (`token.actions.githubusercontent.com`) |
+| **IAM role for Actions** | Assumed via `secrets.AWS_ROLE_ARN` |
+| **Trust policy** | Restricts which repo/branch can assume the role |
+| **Permission policy** | Scoped permissions for CI operations |
+
+**Benefits:** No static keys to rotate or leak · Industry-standard auth model · Stronger security posture
 
 **Target branch protection:** `main`
 
@@ -201,7 +223,7 @@ Catches issues before they reach CI — faster feedback, fewer pipeline failures
 
 - No WAF, HTTPS listener, or ACM certificate (planned)
 - No VPC Flow Logs or ALB access logs (planned with CloudWatch phase)
-- No Multi-AZ RDS or enhanced monitoring (cost / later phase)
+- No Multi-AZ RDS (`multi_az = false`) or enhanced monitoring — planned for production phase
 
 ---
 
@@ -264,9 +286,9 @@ VPC · Internet Gateway · Route Tables · Public / Private App / Private DB Sub
 
 ---
 
-## Deployment workflow (Terraform)
+## Planned deployment workflow (Terraform)
 
-Primary path — infrastructure and application runtime in one apply (after Docker images are on Docker Hub):
+When remote state and AWS validation are ready — infrastructure and application runtime in one apply (after Docker images are on Docker Hub):
 
 ```bash
 # 1. Push images to Docker Hub
@@ -304,54 +326,6 @@ Before Terraform automation, this architecture was built step-by-step in the **A
 
 ---
 
-## Project status
-
-### Completed
-
-- Terraform infrastructure (VPC, ALB, ASG, RDS, IAM, security groups)
-- GitHub Actions CI pipeline with OIDC authentication
-- Terraform format, validate, TFLint, Checkov, GitLeaks
-- Pre-commit hooks
-- IMDSv2 on EC2 launch templates
-- RDS storage encryption
-- Database schema auto-bootstrap (`bootstrap.js`)
-- Checkov skip annotations for accepted dev-environment findings
-- `.gitattributes` for consistent LF line endings
-
-### In progress
-
-- Terraform remote state (S3 bootstrap)
-- CloudWatch monitoring, dashboards, and alarms
-- SNS notifications
-
-### Planned
-
-- ACM certificates and HTTPS listener
-- ALB HTTP → HTTPS redirect
-- AWS WAF
-- `terraform plan` / apply in CI/CD
-- Infracost cost estimation
-- VPC Flow Logs, ALB access logs
-- Multi-AZ RDS and production hardening
-
----
-
-## Cost considerations
-
-This project is intended for **learning and portfolio** use. Running it 24/7 incurs real AWS charges.
-
-| Resource | Est. monthly cost (us-east-1) |
-|----------|-------------------------------|
-| 2× NAT Gateways | ~$65 (+ data processing) |
-| Application Load Balancer | ~$16 (+ LCU) |
-| RDS `db.t3.micro` | ~$12 |
-| 2× EC2 `t3.micro` (ASGs) | ~$17 |
-| **Total (rough)** | **~$110+/month** |
-
-**Always run `terraform destroy` when you finish testing.**
-
----
-
 ## Challenges solved
 
 | Challenge | Solution |
@@ -383,7 +357,7 @@ This project is intended for **learning and portfolio** use. Running it 24/7 inc
 
 Hands-on experience with:
 
-**AWS** · **Terraform** · **Infrastructure as Code** · **VPC** · **Application Load Balancer** · **Auto Scaling Groups** · **RDS MySQL** · **Docker** · **Private Subnets** · **Multi-AZ** · **High Availability** · **GitHub Actions** · **CI/CD** · **OIDC** · **IAM** · **TFLint** · **GitLeaks** · **Checkov** · **DevOps engineering practices**
+**AWS** · **Terraform** · **Infrastructure as Code** · **VPC** · **Application Load Balancer** · **Auto Scaling Groups** · **RDS MySQL** · **Docker** · **Private Subnets** · **Multi-subnet HA** · **GitHub Actions** · **CI/CD** · **OIDC** · **AssumeRoleWithWebIdentity** · **IAM** · **TFLint** · **GitLeaks** · **Checkov** · **DevOps engineering practices**
 
 ---
 
@@ -452,7 +426,7 @@ Capture from **your** AWS account and GitHub after deploy. Save under `docs/imag
 | 4 | `alb-healthy.png` | Target groups → **healthy** targets | README, terraform-deployment.md |
 | 5 | `alb-listener-rules.png` | Listener rules: `/api/*` + default | README, architecture.md |
 | 6 | `rds-instance.png` | RDS → encrypted, private endpoint | README |
-| 7 | `asg-instances.png` | ASGs `frontend-sg` / `backend-sg` | README |
+| 7 | `asg-instances.png` | ASGs `frontend-asg` / `backend-asg` | README |
 | 8 | `github-actions-ci.png` | GitHub Actions workflow run — all steps green | README |
 | 9 | `ec2-docker-ps.png` | SSM → `sudo docker ps` on backend | terraform-deployment.md |
 | 10 | `app-dashboard.png` | Browser → ALB URL → dashboard | README |

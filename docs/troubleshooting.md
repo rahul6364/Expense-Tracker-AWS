@@ -82,7 +82,7 @@ DB_PORT=3306
 If wrong, fix `terraform/scripts/backend.sh` / user data and refresh ASG:
 
 ```bash
-aws autoscaling start-instance-refresh --auto-scaling-group-name backend-sg
+aws autoscaling start-instance-refresh --auto-scaling-group-name backend-asg
 ```
 
 **Step 4 — Optional manual create (debug only)**
@@ -142,7 +142,7 @@ docker push rahul6364/expense-tracker-api:latest
 **Step 3 — Replace backend instance**
 
 ```bash
-aws autoscaling start-instance-refresh --auto-scaling-group-name backend-sg
+aws autoscaling start-instance-refresh --auto-scaling-group-name backend-asg
 ```
 
 **Step 4 — Manual fallback (debug only)**
@@ -402,7 +402,7 @@ Set backend `CORS_ORIGINS=http://YOUR-ALB-DNS` in user data if restricting CORS.
 | Outputs | `terraform output application_url` |
 | State drift | `terraform plan` (no unexpected changes) |
 | User data vars | `db_password` in tfvars matches RDS |
-| ASG names | `frontend-sg`, `backend-sg` |
+| ASG names | `frontend-asg`, `backend-asg` |
 
 **First deploy:** Wait 15 minutes before deep debugging.
 
