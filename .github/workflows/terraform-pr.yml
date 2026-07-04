@@ -3,12 +3,16 @@ on:
   pull_request:
     paths:
         - 'terraform/**'
+env:
+  TF_VAR_db_user: ${{ secrets.DB_USER }}
+  TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
 jobs:
   terraform:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: terraform
+    
     permissions:
       id-token: write
       contents: read
@@ -20,18 +24,73 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{secrets.AWS_ROLE_ARN}}
+          aws-region: us-east-1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: terrafrom format check
-        run: terrafrom fmt -check -recursive
+      - name: terraform format check
+        run: terraform fmt -check -recursive
       
       - name: Initialize Terraform
-        run: terrafrom init -backend=false
+        run: terraform init 
 
-      - name: terrafrom validate
-        run: terrafrom validate
+      - name: terraform validate
+        run: terraform validate
 
-      - name: terrafrom plan
-        run: terrafrom plan -lock=false
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Initialize TFLint
+        run: tflint --init
+
+      - name: Run TFLint
+        run: tflint
+      # Debug files to check for checkov:skip comments
+      # - name: Debug files
+      #   run: |
+      #     echo "===== RDS ====="
+      #     cat rds.tf
+      #     echo "===== ALB ====="
+      #     grep -n "checkov:skip" alb.tf
+      #     grep -n "checkov:skip" rds.tf
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform
+          framework: terraform
+          soft_fail: true
+      
+      - name: terraform plan
+        run: terraform plan  -out=tfplan -input=false
+      
+      - name: Setup infracost
+        uses: infracost/actions/setup@v3
+
+      - name: run infracost
+        env:
+          INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+        run: infracost breakdown --path=tfplan --format=json --out-file=infracost.json
+
+      - name: Show Infracost report
+        env:
+          INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+        run: |
+          infracost output \
+            --path=infracost.json \
+            --format=table
+
+      - name: upload plan to artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: terraform/tfplan
+      
+      - name: Upload Infracost Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: infracost-report
+          path: terraform/infracost.json
+
+          

@@ -28,7 +28,7 @@ End-to-end deployment of the Expense Tracker on AWS using Infrastructure as Code
 | Network | VPC, 6 subnets, IGW, 2× NAT + EIP, route tables |
 | Security | ALB, frontend, backend, RDS security groups |
 | Load balancing | ALB `expenses-alb`, `frontend-tg`, `backend-tg`, `/api/*` rule |
-| Compute | Launch templates, ASGs `frontend-sg` / `backend-sg` |
+| Compute | Launch templates, ASGs `frontend-asg` / `backend-asg` |
 | Database | RDS MySQL `expense-tracker-db`, DB subnet group |
 | IAM | EC2 instance profile for SSM |
 
@@ -261,8 +261,8 @@ Console → RDS → `expense-tracker-db` → confirm **Publicly accessible: No**
 2. Refresh ASG instances:
 
 ```bash
-aws autoscaling start-instance-refresh --auto-scaling-group-name backend-sg
-aws autoscaling start-instance-refresh --auto-scaling-group-name frontend-sg
+aws autoscaling start-instance-refresh --auto-scaling-group-name backend-asg
+aws autoscaling start-instance-refresh --auto-scaling-group-name frontend-asg
 ```
 
 Or terminate instances; ASG replaces them and re-runs user data.

@@ -1,0 +1,62 @@
+name: Deploy infrastructure
+on:
+  push:
+    branches:
+      - main
+env:
+  TF_VAR_db_user: ${{ secrets.DB_USER }}
+  TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+permissions:
+    id-token: write
+    contents: read
+concurrency:
+  group: terraform-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    timeout-minutes: 45
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{secrets.AWS_ROLE_ARN}}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive
+
+      - name: terraform init
+        run: terraform init -input=false
+
+
+      - name: terraform validate
+        run: terraform validate
+
+      - name: terraform plan
+        run: terraform plan -out=tfplan -input=false
+
+      - name: Show Terraform Plan
+        run: terraform show tfplan
+        
+      # - name: Save plan to artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #       name: terraform-plan
+      #       path: terraform/tfplan
+      - name: terraform apply
+        run: terraform apply -input=false --auto-approve tfplan
+
+      - name: Terraform Outputs
+        run: terraform output -json 
+      

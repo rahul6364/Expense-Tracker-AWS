@@ -57,7 +57,7 @@ Capture these from **your** AWS account and application after a successful deplo
 | 4 | `alb-healthy.png` | EC2 → Target Groups → both groups → Targets tab, status **healthy** | [README.md](../README.md), [terraform-deployment.md](terraform-deployment.md), [troubleshooting.md](troubleshooting.md) |
 | 5 | `alb-listener-rules.png` | ALB → Listeners → Rules showing `/api/*` → backend, default → frontend | [README.md](../README.md), [architecture.md](architecture.md) |
 | 6 | `rds-instance.png` | RDS → `expense-tracker-db` → Connectivity & security (endpoint, private) | [README.md](../README.md) |
-| 7 | `asg-instances.png` | EC2 → Auto Scaling Groups → `frontend-sg` / `backend-sg` → Instance management | [README.md](../README.md) |
+| 7 | `asg-instances.png` | EC2 → Auto Scaling Groups → `frontend-asg` / `backend-asg` → Instance management | [README.md](../README.md) |
 | 8 | `ec2-docker-ps.png` | SSM Session Manager on backend instance → `sudo docker ps` showing running containers | [terraform-deployment.md](terraform-deployment.md) |
 | 9 | `app-dashboard.png` | Browser → ALB URL → dashboard with balance cards | [README.md](../README.md) |
 | 10 | `app-transactions.png` | Browser → transaction list with sample data | [README.md](../README.md) |

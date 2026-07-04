@@ -8,7 +8,11 @@ resource "aws_db_subnet_group" "rds_subnet_group" {
     name = "expens-tracker-db-subent-group"
   }
 }
-
+#checkov:skip=CKV_AWS_157: Multi-AZ disabled to reduce cost in development environment
+#checkov:skip=CKV_AWS_161: Application uses standard MySQL credentials instead of IAM authentication
+#checkov:skip=CKV_AWS_118: Enhanced monitoring will be configured during CloudWatch implementation
+#checkov:skip=CKV_AWS_129: RDS log exports will be configured during CloudWatch implementation
+#checkov:skip=CKV_AWS_293: Deletion protection disabled in development environment
 resource "aws_db_instance" "mysql_rds" {
   identifier = "expense-tracker-db"
 
@@ -34,7 +38,10 @@ resource "aws_db_instance" "mysql_rds" {
     aws_security_group.rds_sg.id
   ]
 
-  skip_final_snapshot = true
+  skip_final_snapshot        = true
+  copy_tags_to_snapshot      = true
+  auto_minor_version_upgrade = true
+  storage_encrypted          = true
 
   tags = {
     Name = "expense-tracker-db-subnet-group"

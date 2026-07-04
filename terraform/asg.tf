@@ -1,5 +1,5 @@
 resource "aws_autoscaling_group" "frontend_asg" {
-  name                = "frontend-sg"
+  name                = "frontend-asg"
   desired_capacity    = 1
   min_size            = 1
   max_size            = 1
@@ -20,7 +20,7 @@ resource "aws_autoscaling_group" "frontend_asg" {
   }
 }
 resource "aws_autoscaling_group" "backend_asg" {
-  name                = "backend-sg"
+  name                = "backend-asg"
   desired_capacity    = 1
   min_size            = 1
   max_size            = 1
