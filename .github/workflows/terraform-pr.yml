@@ -4,8 +4,8 @@ on:
     paths:
         - 'terraform/**'
 env:
-  db_user: ${{ secrets.DB_USER }}
-  db_password: ${{ secrets.DB_PASSWORD }}
+  TF_VAR_db_user: ${{ secrets.DB_USER }}
+  TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
 jobs:
   terraform:
     runs-on: ubuntu-latest
@@ -33,7 +33,7 @@ jobs:
         run: terraform fmt -check -recursive
       
       - name: Initialize Terraform
-        run: terraform init
+        run: terraform init -input=false
 
       - name: terraform validate
         run: terraform validate
@@ -63,10 +63,34 @@ jobs:
           soft_fail: true
       
       - name: terraform plan
-        run: terraform plan  -out=tfplan
-        
+        run: terraform plan  -out=tfplan -input=false
+      
+      - name: Setup infracost
+        uses: infracost/actions/setup@v3
+
+      - name: run infracost
+        env:
+          INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+        run: infracost breakdown --path=tfplan --format=json --out-file=infracost.json
+
+      - name: Show Infracost report
+        env:
+          INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+        run: |
+          infracost output \
+            --path=infracost.json \
+            --format=table
+
       - name: upload plan to artifact
         uses: actions/upload-artifact@v4
         with:
-          name: terraform plan
+          name: terraform-plan
           path: terraform/tfplan
+      
+      - name: Upload Infracost Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: infracost-report
+          path: terraform/infracost.json
+
+          
