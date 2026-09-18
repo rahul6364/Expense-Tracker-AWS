@@ -7,7 +7,7 @@ terraform {
   }
   required_version = ">= 1.10.0"
   backend "s3" {
-    bucket       = "rahul-expense-tracker-tf-state"
+    bucket       = "rahul-expense-backend"
     key          = "terraform/terraform.tfstate"
     region       = "us-east-1"
     encrypt      = true

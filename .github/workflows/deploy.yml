@@ -8,6 +8,7 @@ on:
 env:
   TF_VAR_db_user: ${{ secrets.DB_USER }}
   TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+  TF_VAR_alert_email: ${{secrets.ALERT_EMAIL}}
 
 permissions:
   id-token: write

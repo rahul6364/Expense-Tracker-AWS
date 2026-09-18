@@ -71,3 +71,9 @@ variable "db_password" {
 #   type        = string
 #   description = "The endpoint for the rds"
 # }
+
+variable "alert_email" {
+  description = "Email address for CloudWatch alerts"
+  type        = string
+  sensitive   = true
+}
