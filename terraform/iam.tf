@@ -26,3 +26,28 @@ resource "aws_iam_instance_profile" "ec2_instance_profile" {
   name = "expense-tracker-instance-profile"
   role = aws_iam_role.ec2_role.name
 }
+
+resource "aws_iam_role_policy" "cloudwatch_logs" {
+  name = "expense-tracker-cloudwatch-logs"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+
+        Resource = [
+          "${aws_cloudwatch_log_group.frontend.arn}:*",
+          "${aws_cloudwatch_log_group.backend.arn}:*"
+        ]
+      }
+    ]
+  })
+}

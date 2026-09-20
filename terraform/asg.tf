@@ -1,4 +1,6 @@
 resource "aws_autoscaling_group" "frontend_asg" {
+
+
   name                = "frontend-asg"
   desired_capacity    = 1
   min_size            = 1
@@ -11,6 +13,15 @@ resource "aws_autoscaling_group" "frontend_asg" {
     id      = aws_launch_template.frontend_lt.id
     version = "$Latest"
   }
+  metrics_granularity = "1Minute"
+
+  enabled_metrics = [
+    "GroupDesiredCapacity",
+    "GroupInServiceInstances",
+    "GroupMinSize",
+    "GroupMaxSize"
+  ]
+
   health_check_type = "ELB"
 
   tag {
@@ -28,10 +39,21 @@ resource "aws_autoscaling_group" "backend_asg" {
   target_group_arns = [
     aws_lb_target_group.backend_tg.arn
   ]
+
+
   launch_template {
     id      = aws_launch_template.backend_lt.id
     version = "$Latest"
   }
+
+  metrics_granularity = "1Minute"
+
+  enabled_metrics = [
+    "GroupDesiredCapacity",
+    "GroupInServiceInstances",
+    "GroupMinSize",
+    "GroupMaxSize"
+  ]
   health_check_type = "ELB"
 
   tag {
