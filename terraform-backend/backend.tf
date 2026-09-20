@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "terraform_state" {
-  bucket        = "rahul-expense-tracker-tf-state"
+  bucket        = "rahul-expense-tracker123"
   force_destroy = true
   tags = {
     Name        = "terraform-state-bucket"

@@ -23,4 +23,9 @@ docker run -d \
   -e DB_NAME="expense_tracker" \
   -e DB_PORT=3306 \
   --restart unless-stopped \
+  --log-driver=awslogs \
+  --log-opt awslogs-region=us-east-1 \
+  --log-opt awslogs-group=/expense-tracker/backend \
+  --log-opt awslogs-stream=backend-$${HOSTNAME} \
+  --log-opt awslogs-create-group=false \
   rahul6364/expense-tracker-api:latest
