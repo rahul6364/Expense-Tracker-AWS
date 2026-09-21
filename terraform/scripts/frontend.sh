@@ -21,6 +21,6 @@ docker run -d \
   --log-driver=awslogs \
   --log-opt awslogs-region=us-east-1 \
   --log-opt awslogs-group=/expense-tracker/frontend \
-  --log-opt awslogs-stream=frontend-$${HOSTNAME} \
+  --log-opt awslogs-stream=frontend-${HOSTNAME} \
   --log-opt awslogs-create-group=false \
   rahul6364/expense-tracker-web:latest
