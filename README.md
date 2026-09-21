@@ -24,7 +24,7 @@ Save as:
 docs/screenshots/project-overview.png
 -->
 
-<!-- ![AWS Expense Tracker project overview](docs/screenshots/project-overview.png) -->
+![AWS Expense Tracker project overview](docs/screenshots/project-overview.png)
 
 ---
 
@@ -137,7 +137,7 @@ Save as:
 docs/screenshots/aws-architecture.png
 -->
 
-<!-- ![AWS architecture](docs/screenshots/aws-architecture.png) -->
+![AWS architecture](docs/screenshots/aws-architecture.png)
 
 ---
 
